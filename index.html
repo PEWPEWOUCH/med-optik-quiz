@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Med Optik Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Strong gradient in orange and red tones */
+            background: linear-gradient(135deg, #FF4500 0%, #FF6347 30%, #FFA07A 70%, #FFDAB9 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            /* overflow: hidden; /* Removed to allow body scroll if needed, particles are positioned absolutely */
+        }
+
+        /* Main quiz container styling */
+        .quiz-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Strong shadow */
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            position: relative;
+            z-index: 10;
+            /* Enable vertical scrolling for the container itself */
+            max-height: calc(100vh - 40px); /* 100vh minus body padding (20px top + 20px bottom) */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        /* Styling for buttons */
+        .btn {
+            background-color: #FF4500; /* Orange-Red */
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: block;
+            width: 100%;
+            margin-top: 0.75rem; /* mt-3 */
+        }
+
+        .btn:hover {
+            background-color: #FF6347; /* Lighter tone on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Specific styling for answer buttons */
+        .answer-btn {
+            background-color: #FF6347; /* Slightly different orange-red */
+            color: white;
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem; /* text-base */
+            font-weight: 500; /* font-medium */
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            width: 100%;
+        }
+
+        .answer-btn:hover {
+            background-color: #FFA07A; /* Even lighter on hover */
+            transform: translateY(-1px);
+        }
+
+        .answer-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* Correct/Incorrect answer styling */
+        .answer-btn.correct {
+            background-color: #4CAF50; /* Green for correct */
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+        }
+
+        .answer-btn.incorrect {
+            background-color: #F44336; /* Red for incorrect */
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.8);
+        }
+
+        /* Explanation box styling */
+        .explanation-box {
+            background-color: #FFDAB9; /* Lighter orange nuance */
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-top: 1.5rem;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            border: 1px solid #FFC080;
+            color: #333;
+        }
+
+        /* Character animation container - Hidden by default */
+        .character-container {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            position: relative;
+            /* overflow: hidden; /* REMOVED: Allows animation to extend beyond bounds */
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.3s ease; /* Smooth fade in/out */
+        }
+
+        .character-head {
+            transform-origin: 50% 100%; /* Pivot point at the bottom of the head */
+            transition: transform 0.3s ease-out;
+        }
+
+        .character-head.nod {
+            animation: nodAnimation 0.6s ease-out forwards;
+        }
+
+        .character-head.shake {
+            animation: shakeAnimation 0.6s ease-out forwards;
+        }
+
+        @keyframes nodAnimation {
+            0% { transform: rotateX(0deg); }
+            25% { transform: rotateX(15deg); }
+            50% { transform: rotateX(-10deg); }
+            75% { transform: rotateX(5deg); }
+            100% { transform: rotateX(0deg); }
+        }
+
+        @keyframes shakeAnimation {
+            0% { transform: translateX(0px); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0px); }
+        }
+
+        /* Fire particle effect */
+        .fire-particle {
+            position: absolute;
+            background-color: orange;
+            border-radius: 50%;
+            opacity: 0;
+            animation: fireParticleAnimation 1s forwards;
+            pointer-events: none; /* Ensure it doesn't block clicks */
+            z-index: 20;
+        }
+
+        @keyframes fireParticleAnimation {
+            0% {
+                transform: scale(0.2) translateY(0);
+                opacity: 1;
+                background-color: #FF4500;
+            }
+            50% {
+                transform: scale(1) translateY(-20px);
+                opacity: 0.8;
+                background-color: #FF8C00;
+            }
+            100% {
+                transform: scale(0) translateY(-50px);
+                opacity: 0;
+                background-color: #FFD700;
+            }
+        }
+
+        /* Pulsating button for incorrect answer */
+        .btn-pulsate {
+            animation: pulsateRed 0.8s infinite alternate;
+        }
+
+        @keyframes pulsateRed {
+            0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+            100% { box-shadow: 0 0 0 15px rgba(244, 67, 54, 0); }
+        }
+
+        /* Custom Modal Styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.visible .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-content h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .modal-content p {
+            margin-bottom: 1.5rem;
+            color: #555;
+        }
+
+        .modal-content .modal-close-btn {
+            background-color: #FF4500;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .modal-content .modal-close-btn:hover {
+            background-color: #FF6347;
+        }
+
+        /* Default styling for logo on larger screens */
+        #start-screen .mb-8 img {
+            max-width: 600px;
+            height: auto;
+            max-height: 300px;
+        }
+
+        /* --- MOBILE OPTIMIZATIONS --- */
+        @media (max-width: 768px) { /* Applies to screens 768px wide or smaller (typical tablets/phones) */
+            body {
+                padding: 10px; /* Reduce overall padding */
+                align-items: flex-start; /* Align to top on mobile to make more room for content */
+            }
+
+            .quiz-container {
+                padding: 1.25rem; /* Reduce padding inside the container */
+                max-height: calc(100vh - 20px); /* 100vh minus body padding (10px top + 10px bottom) */
+                /* overflow-y: auto; is already set above */
+                gap: 1rem; /* Reduce gap between elements */
+            }
+
+            #start-screen .mb-8 img {
+                max-width: 80vw; /* Logo max width is 80% of viewport width */
+                max-height: 20vh; /* Logo max height is 20% of viewport height */
+            }
+
+            .quiz-container h2 {
+                font-size: 2rem; /* Smaller heading on mobile */
+            }
+
+            .quiz-container h3 {
+                font-size: 1.5rem; /* Smaller question text on mobile */
+            }
+
+            .btn, .answer-btn {
+                padding: 0.8rem 1.5rem; /* Slightly smaller button padding */
+                font-size: 1rem; /* Adjust font size */
+            }
+
+            .explanation-box {
+                padding: 1rem; /* Smaller padding for explanation box */
+            }
+
+            .character-container {
+                width: 120px; /* Larger character container */
+                height: 120px; /* Larger character container */
+            }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-5 min-h-screen">
+
+    <div id="start-screen" class="quiz-container flex-col items-center justify-center">
+        <div class="mb-8">
+            <img src="https://i.ibb.co/yFns1hy1/Logo-Med-Optik-L3.png" alt="Med Optik Logo" class="mx-auto rounded-lg" onerror="this.onerror=null; this.src='https://placehold.co/200x80/FF4500/FFFFFF?text=med+optik+LOGO';">
+        </div>
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6">Willkommen zum med optik-Quiz!</h2>
+        <p class="text-lg text-gray-600 mb-8">Testen Sie Ihr Wissen über Brillen, Kontaktlinsen und die Geschichte der Optik.</p>
+        <button id="start-quiz-btn" class="btn">Quiz starten</button>
+    </div>
+
+    <div id="quiz-screen" class="quiz-container hidden">
+        <div class="flex justify-between items-center mb-4">
+            <p class="text-lg font-semibold text-gray-700">Frage <span id="current-question-number">1</span> von 10</p>
+            <p class="text-lg font-semibold text-gray-700">Punkte: <span id="score">0</span></p>
+        </div>
+        <h3 id="question-text" class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Frage wird hier angezeigt.</h3>
+        <div id="answer-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            </div>
+
+        <div class="character-container mb-6">
+            <svg class="character-head" width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="40" fill="#FFDAB9"/>
+                <circle cx="35" cy="40" r="5" fill="#333"/>
+                <circle cx="65" cy="40" r="5" fill="#333"/>
+                <path d="M40 60 C45 65, 55 65, 60 60" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+
+        <div id="explanation-area" class="explanation-box hidden">
+            <p class="font-semibold text-lg mb-2">Auflösung:</p>
+            <p id="explanation-text" class="text-gray-700"></p>
+        </div>
+
+        <button id="next-question-btn" class="btn mt-6 hidden">Nächste Frage</button>
+    </div>
+
+    <div id="end-screen" class="quiz-container hidden">
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6">Quiz beendet!</h2>
+        <p class="text-xl text-gray-700 mb-4">Ihre Punktzahl: <span id="final-score" class="font-bold">0</span> von 10</p>
+        <button id="restart-quiz-btn" class="btn">Quiz neu starten</button>
+    </div>
+
+    <div id="custom-modal-overlay" class="modal-overlay">
+        <div class="modal-content rounded-xl">
+            <h3 id="modal-title"></h3>
+            <p id="modal-message"></p>
+            <button id="modal-close-btn" class="modal-close-btn rounded-lg">Schließen</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const endScreen = document.getElementById('end-screen');
+        const startQuizBtn = document.getElementById('start-quiz-btn');
+        const questionText = document.getElementById('question-text');
+        const answerButtonsContainer = document.getElementById('answer-buttons');
+        const currentQuestionNumberSpan = document.getElementById('current-question-number');
+        const scoreSpan = document.getElementById('score');
+        const explanationArea = document.getElementById('explanation-area');
+        const explanationText = document.getElementById('explanation-text');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const finalScoreSpan = document.getElementById('final-score');
+        const restartQuizBtn = document.getElementById('restart-quiz-btn');
+        const characterContainer = document.querySelector('.character-container');
+        const characterHead = document.querySelector('.character-head');
+
+        // Custom Modal Elements
+        const customModalOverlay = document.getElementById('custom-modal-overlay');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        // Quiz Data (Example Questions - Extend this to 100 questions!)
+        const allQuizQuestions = [
+            {
+                question: "Wer gilt als Erfinder der Brille?",
+                options: ["Roger Bacon", "Salvino D'Armate", "Johannes Kepler", "Leonardo da Vinci"],
+                correctAnswer: "Salvino D'Armate",
+                explanation: "Obwohl die genaue Herkunft umstritten ist, wird Salvino D'Armate oft als einer der frühen Erfinder der tragbaren Brille im 13. Jahrhundert genannt."
+            },
+            {
+                question: "Welcher Teil des Auges ist für die Lichtbrechung am stärksten verantwortlich?",
+                options: ["Linse", "Hornhaut", "Glaskörper", "Netzhaut"],
+                correctAnswer: "Hornhaut",
+                explanation: "Die Hornhaut (Cornea) ist die klare, vordere Oberfläche des Auges und leistet den größten Beitrag zur Brechkraft des Auges."
+            },
+            {
+                question: "Wann wurden die ersten kommerziellen Kontaktlinsen eingeführt?",
+                options: ["1887", "1938", "1971", "2000"],
+                correctAnswer: "1938",
+                explanation: "Die ersten kommerziellen Kontaktlinsen aus PMMA (Plexiglas) wurden 1938 von William Feinbloom entwickelt."
+            },
+            {
+                question: "Was ist Myopie?",
+                options: ["Weitsichtigkeit", "Kurzsichtigkeit", "Astigmatismus", "Grüner Star"],
+                correctAnswer: "Kurzsichtigkeit",
+                explanation: "Myopie ist der medizinische Fachbegriff für Kurzsichtigkeit, bei der ferne Objekte unscharf erscheinen."
+            },
+            {
+                question: "Welches Tier hat die größten Augen im Verhältnis zu seiner Körpergröße?",
+                options: ["Eule", "Tarsier", "Krake", "Chamäleon"],
+                correctAnswer: "Tarsier",
+                explanation: "Der Tarsier, ein kleiner Primat, hat Augen, die so groß wie sein Gehirn sind und etwa 16% seines Körpergewichts ausmachen."
+            },
+            {
+                question: "Was bedeutet die Abkürzung 'UV' bei Brillengläsern?",
+                options: ["Ultra-Violett", "Unter-Vision", "Universal-Verstärkung", "Umfeld-Veredelung"],
+                correctAnswer: "Ultra-Violett",
+                explanation: "UV-Schutz bei Brillengläsern blockiert schädliche ultraviolette Strahlung, die Augenschäden verursachen kann."
+            },
+            {
+                question: "In welchem Jahrhundert wurden Bifokalgläser erfunden?",
+                options: ["16. Jahrhundert", "17. Jahrhundert", "18. Jahrhundert", "19. Jahrhundert"],
+                correctAnswer: "18. Jahrhundert",
+                explanation: "Bifokalgläser, die zwei verschiedene Sehstärken in einem Glas vereinen, wurden im 18. Jahrhundert erfunden, oft Benjamin Franklin zugeschrieben."
+            },
+            {
+                question: "Was ist der Sehnerv?",
+                options: ["Ein Muskel, der das Auge bewegt", "Der Teil des Auges, der Farben erkennt", "Die Verbindung zwischen Auge und Gehirn", "Eine Schicht der Netzhaut"],
+                correctAnswer: "Die Verbindung zwischen Auge und Gehirn",
+                explanation: "Der Sehnerv leitet visuelle Informationen von der Netzhaut an das Gehirn weiter, wo sie als Bilder interpretiert werden."
+            },
+            {
+                question: "Welche Art von Linsen korrigiert Astigmatismus?",
+                options: ["Sphärische Linsen", "Zylindrische Linsen", "Prismatische Linsen", "Bifokale Linsen"],
+                correctAnswer: "Zylindrische Linsen",
+                explanation: "Astigmatismus wird durch eine ungleichmäßige Krümmung der Hornhaut verursacht und mit zylindrischen Linsen korrigiert."
+            },
+            {
+                question: "Was ist die Pupille?",
+                options: ["Der farbige Teil des Auges", "Die Öffnung, die Licht ins Auge lässt", "Die Linse des Auges", "Die Rückseite des Auges"],
+                correctAnswer: "Die Öffnung, die Licht ins Auge lässt",
+                explanation: "Die Pupille ist die schwarze Öffnung in der Mitte der Iris, die sich vergrößert oder verkleinert, um die Menge des einfallenden Lichts zu regulieren."
+            },
+            {
+                question: "Welche Farbe hat die Iris des Auges bei Albinismus typischerweise?",
+                options: ["Blau", "Braun", "Rosa/Rot", "Grün"],
+                correctAnswer: "Rosa/Rot",
+                explanation: "Bei Albinismus fehlt Pigment, wodurch die Blutgefäße in der Iris sichtbar werden und ihr eine rosa oder rote Farbe verleihen."
+            },
+            {
+                question: "Was ist die Presbyopie?",
+                options: ["Nachtblindheit", "Altersweitsichtigkeit", "Farbblindheit", "Grauer Star"],
+                correctAnswer: "Altersweitsichtigkeit",
+                explanation: "Presbyopie ist der natürliche Verlust der Nahsicht, der mit dem Alter auftritt, da die Linse an Flexibilität verliert."
+            },
+            {
+                question: "Welcher berühmte Wissenschaftler entwickelte eine Theorie des Farbsehens?",
+                options: ["Isaac Newton", "Albert Einstein", "Marie Curie", "Charles Darwin"],
+                correctAnswer: "Isaac Newton",
+                explanation: "Isaac Newton führte bahnbrechende Experimente mit Prismen durch und entwickelte eine Theorie, dass weißes Licht aus einem Spektrum von Farben besteht."
+            },
+            {
+                question: "Was ist ein Optiker?",
+                options: ["Ein Arzt, der Augenkrankheiten behandelt", "Ein Fachmann, der Brillen und Kontaktlinsen anpasst und verkauft", "Ein Chirurg, der Augenoperationen durchführt", "Ein Forscher, der die Physik des Lichts studiert"],
+                correctAnswer: "Ein Fachmann, der Brillen und Kontaktlinsen anpasst und verkauft",
+                explanation: "Ein Optiker ist ein Experte für die Anpassung von Sehhilfen und die Beratung bei Sehproblemen, während ein Augenarzt medizinische Diagnosen und Behandlungen vornimmt."
+            },
+            {
+                question: "Wann wurde die erste Sonnenbrille entwickelt?",
+                options: ["Im alten Rom", "Im 12. Jahrhundert in China", "Im 18. Jahrhundert in Europa", "Im 20. Jahrhundert in den USA"],
+                correctAnswer: "Im 12. Jahrhundert in China",
+                explanation: "Die ersten 'Sonnenbrillen' wurden im 12. Jahrhundert in China aus Rauchquarz hergestellt, um die Augen vor Blendung zu schützen."
+            }
+        ];
+
+        let currentQuizQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        const MAX_QUESTIONS_PER_ROUND = 10;
+
+        // --- Utility Functions ---
+
+        // Fisher-Yates (Knuth) shuffle algorithm
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+            }
+            return array;
+        }
+
+        // Show custom modal
+        function showModal(title, message) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            customModalOverlay.classList.add('visible');
+        }
+
+        // Hide custom modal
+        function hideModal() {
+            customModalOverlay.classList.remove('visible');
+        }
+
+        // --- Game Logic ---
+
+        function startGame() {
+            // Shuffle all questions and select the first 10
+            currentQuizQuestions = shuffleArray([...allQuizQuestions]).slice(0, MAX_QUESTIONS_PER_ROUND);
+            currentQuestionIndex = 0;
+            score = 0;
+
+            // Update UI
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            endScreen.classList.add('hidden');
+            explanationArea.classList.add('hidden');
+            nextQuestionBtn.classList.add('hidden');
+            scoreSpan.textContent = score;
+
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            // Hide character when a new question is displayed
+            characterContainer.style.opacity = '0';
+            characterHead.classList.remove('nod', 'shake'); // Reset any previous animation
+
+            // Hide explanation and next button
+            explanationArea.classList.add('hidden');
+            nextQuestionBtn.classList.add('hidden');
+
+            // Remove any pulsating effect from previous incorrect button
+            const pulsatingBtn = document.querySelector('.btn-pulsate');
+            if (pulsatingBtn) {
+                pulsatingBtn.classList.remove('btn-pulsate');
+            }
+
+            // Clear previous answer buttons
+            answerButtonsContainer.innerHTML = '';
+
+            if (currentQuestionIndex < MAX_QUESTIONS_PER_ROUND) {
+                const questionData = currentQuizQuestions[currentQuestionIndex];
+                questionText.textContent = questionData.question;
+                currentQuestionNumberSpan.textContent = currentQuestionIndex + 1;
+
+                // Shuffle options for current question
+                const shuffledOptions = shuffleArray([...questionData.options]);
+
+                shuffledOptions.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.classList.add('answer-btn', 'rounded-lg');
+                    button.addEventListener('click', () => checkAnswer(button, option, questionData.correctAnswer, questionData.explanation));
+                    answerButtonsContainer.appendChild(button);
+                });
+            } else {
+                endGame();
+            }
+        }
+
+        function checkAnswer(selectedButton, selectedOption, correctAnswer, explanation) {
+            // Disable all answer buttons after selection
+            Array.from(answerButtonsContainer.children).forEach(button => {
+                button.disabled = true;
+            });
+
+            // Show explanation area
+            explanationText.textContent = explanation;
+            explanationArea.classList.remove('hidden');
+            nextQuestionBtn.classList.remove('hidden');
+
+            // Show character and animate
+            characterContainer.style.opacity = '1';
+
+            if (selectedOption === correctAnswer) {
+                score++;
+                scoreSpan.textContent = score;
+                selectedButton.classList.add('correct');
+                triggerConfetti();
+                animateCharacter(true); // Nod
+            } else {
+                selectedButton.classList.add('incorrect');
+                // Find and highlight the correct answer
+                Array.from(answerButtonsContainer.children).forEach(button => {
+                    if (button.textContent === correctAnswer) {
+                        button.classList.add('correct');
+                    }
+                });
+                triggerFireEffect(selectedButton); // Fire effect on the incorrect button
+                animateCharacter(false); // Shake head
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        function endGame() {
+            quizScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            finalScoreSpan.textContent = score;
+        }
+
+        function restartQuiz() {
+            endScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            // Game state will be reset by startGame() when button is clicked
+        }
+
+        // --- Animation Functions ---
+
+        function triggerConfetti() {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        }
+
+        function triggerFireEffect(incorrectButton) {
+            // Add pulsating animation to the incorrect button
+            incorrectButton.classList.add('btn-pulsate');
+
+            // Create and animate fire particles
+            const buttonRect = incorrectButton.getBoundingClientRect();
+            const numParticles = 10;
+            for (let i = 0; i < numParticles; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('fire-particle');
+                // Random size for particles
+                const size = Math.random() * 10 + 5; // 5 to 15px
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                // Random position around the button
+                const offsetX = (Math.random() - 0.5) * buttonRect.width * 0.8;
+                const offsetY = (Math.random() - 0.5) * buttonRect.height * 0.8;
+                particle.style.left = `${buttonRect.left + buttonRect.width / 2 + offsetX}px`;
+                particle.style.top = `${buttonRect.top + buttonRect.height / 2 + offsetY}px`;
+                document.body.appendChild(particle);
+
+                // Remove particle after animation
+                particle.addEventListener('animationend', () => {
+                    particle.remove();
+                });
+            }
+        }
+
+        function animateCharacter(isCorrect) {
+            characterHead.classList.remove('nod', 'shake'); // Reset any previous animation
+            void characterHead.offsetWidth; // Trigger reflow to restart animation
+            if (isCorrect) {
+                characterHead.classList.add('nod');
+            } else {
+                characterHead.classList.add('shake');
+            }
+        }
+
+        // --- Event Listeners ---
+        startQuizBtn.addEventListener('click', startGame);
+        nextQuestionBtn.addEventListener('click', nextQuestion);
+        restartQuizBtn.addEventListener('click', restartQuiz);
+        modalCloseBtn.addEventListener('click', hideModal);
+
+        // Initial state: show start screen
+        window.onload = () => {
+            startScreen.classList.remove('hidden');
+            quizScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+        };
+
+        // Example of how to use the custom modal (e.g., if quiz questions run out prematurely)
+        // showModal('Fehler', 'Es gab ein Problem beim Laden der Fragen.');
+    </script>
+</body>
+</html>
